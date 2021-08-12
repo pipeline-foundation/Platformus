@@ -89,7 +89,7 @@ jobs:
           git fetch --all --tags
 
           $gitTagsList = git tag
-          $projectCurrentVersion = ( $gitTagsList | Where-Object { $_ -notmatch 'v' } | Sort-Object { [Version] $_ } -Descending )[0] -replace ' ', ''
+          $projectCurrentVersion = ( $gitTagsList | Where-Object { $_ -notmatch "-" } | Sort-Object { [Version] $_ } -Descending )[0] -replace ' ', ''
           $projectNewVersion = $gitNewVersion ?? $projectCurrentVersion
 
           Write-Output "::set-output name=project_version::$(echo $projectNewVersion)"
