@@ -160,6 +160,12 @@ jobs:
         with:
           dotnet-version: 5.0.302
 
+      - name: Install/Update 7z
+        shell: pwsh
+        run: |
+          sudo apt update
+          sudo apt install p7zip-full p7zip-rar
+
       # NuGet packages publish
 
       - name: Download and extract NuGet packages artifact
@@ -186,19 +192,29 @@ jobs:
 
       # GitHub release preparation and publish
 
+      - name: Archive packages for release
+        shell: pwsh
+        run: |
+          $nugetPackagesFolder = "${{ needs.ci.outputs.nugetPackagesFolderName }}"
+          $latestVersion = "${{ needs.ci.outputs.latest_version }}"
+          $githubRunNumber = ${{ github.run_number }}
+          $packagesArchiveTitle = "$nugetPackagesFolder $latestVersion-$githubRunNumber.7z"
+
+          Push-Location "./$nugetPackagesFolder"
+          7z a "${{ github.workspace }}/$packagesArchiveTitle" .
+
       - name: Create and publish release
         shell: pwsh
         run: |
           $nugetPackagesFolder = "${{ needs.ci.outputs.nugetPackagesFolderName }}"
           $latestVersion = "${{ needs.ci.outputs.latest_version }}"
+          $githubRunNumber = ${{ github.run_number }}
           $releaseTag = $latestVersion
           $releaseTitle = " $latestVersion"
-          $releaseNotes = ""
-          $releaseAssets = ( Get-ChildItem -Path $nugetPackagesFolder | Where-Object { $_.Extension -eq '.nupkg' } ).FullName
+          $releaseAssets = "$nugetPackagesFolder $latestVersion-$githubRunNumber.7z"
 
           gh release create $releaseTag `
           --title $releaseTitle `
-          --notes $releaseNotes `
           $releaseAssets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
