@@ -139,84 +139,68 @@ jobs:
           name: NuGet packages
           path: "${{ env.nugetPackagesFolderName }}"
 
-  # cd:
-  #   if: needs.ci.outputs.latest_version != ''
-  #   name: Continuous Deployment
-  #   needs: ci
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout repository # GH CLI requires a cloned repo
-  #       uses: actions/checkout@v2
+  cd:
+    if: needs.ci.outputs.latest_version != ''
+    name: Continuous Deployment
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository # GH CLI requires a cloned repo
+        uses: actions/checkout@v2
 
-  #     # Tooling setup
+      # Tooling setup
 
-  #     - name: Install .NET SDK
-  #       uses: actions/setup-dotnet@v1
-  #       with:
-  #         dotnet-version: 5.0.302
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 2.1.525
 
-  #     - name: Install/Update 7z
-  #       shell: pwsh
-  #       run: |
-  #         sudo apt update
-  #         sudo apt install p7zip-full p7zip-rar
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 5.0.302
 
-  #     # NuGet packages publish
+      # NuGet packages publish
 
-  #     - name: Download and extract NuGet packages artifact
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: NuGet packages
-  #         path: "${{ needs.ci.outputs.nugetPackagesFolderName }}"
+      - name: Download and extract NuGet packages artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: NuGet packages
+          path: "${{ needs.ci.outputs.nugetPackagesFolderName }}"
 
-  #     - name: Push NuGet packages to NuGet.org
-  #       continue-on-error: true
-  #       shell: pwsh
-  #       run: |
-  #         $nugetPackagesFolder = "${{ needs.ci.outputs.nugetPackagesFolderName }}"
-  #         $nugetSource = "https://api.nuget.org/v3/index.json"
-  #         $nugetApiKey = "${{ secrets.NUGET_API_KEY }}"
+      - name: Push NuGet packages to NuGet.org
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $nugetPackagesFolder = "${{ needs.ci.outputs.nugetPackagesFolderName }}"
+          $nugetSource = "https://api.nuget.org/v3/index.json"
+          $nugetApiKey = "${{ secrets.NUGET_API_KEY }}"
 
-  #         Push-Location $nugetPackagesFolder
-  #         Get-ChildItem *.nupkg | ForEach-Object {
-  #           dotnet nuget push $_.FullName `
-  #           --source $nugetSource `
-  #           --api-key $nugetApiKey
-  #         }
+          Push-Location $nugetPackagesFolder
 
-  #     # GitHub release preparation and publish
+          Get-ChildItem *.nupkg | ForEach-Object {
+            dotnet nuget push $_.FullName `
+            --source $nugetSource `
+            --api-key $nugetApiKey
+          }
 
-  #     - name: Download and extract assemblies artifact
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: Publish output
-  #         path: "${{ needs.ci.outputs.publishOutputFolderName }}"
+      # GitHub release preparation and publish
 
-  #     - name: Archive assemblies for release
-  #       shell: pwsh
-  #       run: |
-  #         $publishOutputFolder = "${{ needs.ci.outputs.publishOutputFolderName }}"
-  #         $latestVersion = "${{ needs.ci.outputs.latest_version }}"
-  #         $assembliesArchiveTitle = " $latestVersion Assemblies.7z"
+      - name: Create and publish release
+        shell: pwsh
+        run: |
+          $nugetPackagesFolder = "${{ needs.ci.outputs.nugetPackagesFolderName }}"
+          $latestVersion = "${{ needs.ci.outputs.latest_version }}"
+          $releaseTag = $latestVersion
+          $releaseTitle = " $latestVersion"
+          $releaseNotes = ""
+          $releaseAssets = ( Get-ChildItem -Path $nugetPackagesFolder | Where-Object { $_.Extension -eq '.nupkg' } ).FullName
 
-  #         Push-Location "./$publishOutputFolder"
-  #         7z a "${{ github.workspace }}/$assembliesArchiveTitle" .
-
-  #     - name: Create and publish release
-  #       shell: pwsh
-  #       run: |
-  #         $nugetPackagesFolder = "${{ needs.ci.outputs.nugetPackagesFolderName }}"
-  #         $latestVersion = "${{ needs.ci.outputs.latest_version }}"
-  #         $releaseTag = $latestVersion
-  #         $releaseTitle = " $latestVersion"
-  #         $releaseNotes = ""
-  #         $releaseAssets = "$nugetPackagesFolder/.$latestVersion.nupkg", "$nugetPackagesFolder/.$latestVersion.snupkg", "$releaseTitle Assemblies.7z"
-
-  #         gh release create $releaseTag `
-  #         --title $releaseTitle `
-  #         --notes $releaseNotes `
-  #         $releaseAssets
-  #       env:
-  #         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          gh release create $releaseTag `
+          --title $releaseTitle `
+          --notes $releaseNotes `
+          $releaseAssets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 # Built with ❤ by [Pipeline Foundation](https://pipeline.foundation)
